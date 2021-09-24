@@ -1,0 +1,101 @@
+//------------------------NETWORK------------------------
+docker network create --driver bridge --subnet 10.0.0.32/28 net_stocks_exchange
+
+//------------------------CONFIG SERVER------------------------
+//crear volume 
+docker volume create vol_cfg_stocks1
+
+//crea server
+docker run -d --net net_stocks_exchange -v vol_cfg_stocks1:/data/configdb --ip 10.0.0.34 --name cfg_stocks1 mongo mongod --port 27022:27017 --configsvr --replSet "rep_cfg_stocks" --dbpath /data/configdb
+
+docker exec -it cfg_stocks1 bash
+
+//init al servicio de replica set
+rs.initiate(
+  {
+    _id: "rep_cfg_stocks",
+    configsvr: true,
+    members: [
+      { _id : 0, host : "172.30.10.175:27022" },    //Pame
+      { _id : 1, host : "172.30.132.156:27017" }    //Dani
+    ]
+  }
+);
+
+// revisar instruccion 
+rs.slaveOk()    //rs.secondaryOk() 
+
+// ejecutar 
+rs.status() // me entrega estadisticas del estado de la replicacion
+
+
+//------------------------SHARD------------------------
+docker volume create vol_asiaafrica_stocks1
+docker volume create vol_asiaafrica_stocks2
+
+docker run -d --net net_stocks_exchange --ip 10.0.0.37 -v vol_asiaafrica_stocks1:/data/db --name asiaafrica_stocks1 mongo mongod --port 27019:27017 --shardsvr --replSet "rep_asiaafrica" --dbpath /data/db
+docker run -d --net net_stocks_exchange --ip 10.0.0.38 -v vol_asiaafrica_stocks2:/data/db --name asiaafrica_stocks2 mongo mongod --port 27020:27017 --shardsvr --replSet "rep_asiaafrica" --dbpath /data/db
+
+
+//inicio la replica
+docker exec -it asiaafrica_stocks1 mongo
+rs.initiate(
+  {
+    _id : "rep_asiaafrica",
+    members: [
+      { _id : 0, host : "10.0.0.37:27019" },
+      { _id : 1, host : "10.0.0.38:27020" }
+    ]
+  }
+);
+
+//------------------------ARBITRO DEL SHARD------------------------
+docker run -d --net net_stocks_exchange --ip 10.0.0.43 --name asiaafrica_arb mongo mongod --port 27018:27017 --replSet rep_asiaafrica
+
+//agrego el arbitro al server
+docker exec -it asiaafrica_stocks1 mongo
+rs.addArb("10.0.0.43:27017")
+rs.status();
+
+
+//------------------------ROUTER------------------------
+//inicializar router indicando config servers
+docker run -d -p 27021:27017 --net net_stocks_exchange --ip 10.0.0.46 --name stocks_router1 mongo mongos --port 27017 --configdb rep_cfg_stocks/172.30.10.175:27022,172.30.132.156:27017
+
+
+// conectamos al router
+docker exec -it stocks_router1 mongo
+sh.addShard( "rep_asiaafrica/10.0.0.37:27019");  hacemos shards con un server en cada replica, no hace faltan los otros porque ya estan en replica entre si
+
+sh.status();
+
+
+//indicar shard keys
+sh.addShardTag("rep_asiaafrica", "N225");
+sh.addShardTag("rep_asiaafrica", "HSI");
+sh.addShardTag("rep_asiaafrica", "000001.SS");
+sh.addShardTag("rep_asiaafrica", "399001.SZ");
+sh.addShardTag("rep_asiaafrica", "NSEI");
+sh.addShardTag("rep_asiaafrica", "KS11");
+sh.addShardTag("rep_asiaafrica", "TWII");
+sh.addShardTag("rep_asiaafrica", "J203.JO");
+
+sh.addTagRange( "stocksdb.daily_prices", { Index: "N225"}, { Index: "N225999"}, "N225" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "HSI"}, { Index: "HSI999"}, "HSI" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "000001.SS"}, { Index: "000001.SS999"}, "000001.SS" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "399001.SZ"}, { Index: "399001.SZ999"}, "399001.SZ" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "NSEI"}, { Index: "NSEI999"}, "NSEI" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "KS11"}, { Index: "KS11999"}, "KS11" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "TWII"}, { Index: "TWII999"}, "TWII" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "J203.JO"}, { Index: "J203.JO999"}, "J203.JO" );
+
+
+// Indico cual va a ser la base de datos que va a soportar sharding
+sh.enableSharding("stocksdb");
+
+// luego el collection y el campo del collection que va servir como shardkey
+sh.shardCollection("stocksdb.daily_prices", { Index : 1 } );
+
+sh.status();
+
+
