@@ -6,7 +6,7 @@ docker network create --driver bridge --subnet 10.0.0.32/28 net_stocks_exchange
 docker volume create vol_cfg_stocks1
 
 //crea server
-docker run -d --net net_stocks_exchange -v vol_cfg_stocks1:/data/configdb --ip 10.0.0.34 --name cfg_stocks1 mongo mongod --port 27022:27017 --configsvr --replSet "rep_cfg_stocks" --dbpath /data/configdb
+docker run -d --net net_stocks_exchange -v vol_cfg_stocks1:/data/configdb --ip 10.0.0.34 --name cfg_stocks1 -p 27022:27017 mongo mongod -port 27017 --configsvr --replSet "rep_cfg_stocks" --dbpath /data/configdb
 
 docker exec -it cfg_stocks1 bash
 
@@ -16,8 +16,8 @@ rs.initiate(
     _id: "rep_cfg_stocks",
     configsvr: true,
     members: [
-      { _id : 0, host : "172.30.10.175:27022" },    //Pame
-      { _id : 1, host : "172.30.132.156:27017" }    //Dani
+      { _id : 0, host : "172.30.10.175:27022" },
+      { _id : 1, host : "172.30.132.156:27017" }
     ]
   }
 );
