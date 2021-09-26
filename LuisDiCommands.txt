@@ -62,5 +62,4 @@ sh.enableSharding("stocksdb");
 
 // Now collection and field for shard key.
 sh.shardCollection("stocksdb.daily_prices", { Index : 1 } );
-
 sh.status();
