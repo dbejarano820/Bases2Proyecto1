@@ -1,0 +1,66 @@
+// Create network
+docker network create --driver bridge --subnet 10.0.0.32/28 net_stocks_exchange
+
+// Create Shards Volumes
+docker volume create vol_europa_stock1
+docker volume create vol_europa_stock2
+
+docker run -d --net net_stocks_exchange --ip 10.0.0.41 -v vol_europa_stock1:/data/db --name europa_stock1 mongo mongod --port 27019:27017 --shardsvr --replSet "rep_europa" --dbpath /data/db
+docker run -d --net net_stocks_exchange --ip 10.0.0.42 -v vol_europa_stock2:/data/db --name europa_stock2 mongo mongod --port 27020:27017 --shardsvr --replSet "rep_europa" --dbpath /data/db
+
+
+// Initialize the replica
+docker exec -it europa_stock1 mongo
+rs.initiate(
+  {
+    _id : "rep_europa",
+    members: [
+      { _id : 0, host : "10.0.0.41:27019" },
+      { _id : 1, host : "10.0.0.42:27020" }
+    ]
+  }
+);
+
+// Create Arbiter
+docker run -d --net net_stocks_exchange --ip 10.0.0.45 --name europa_arb mongo mongod --port 27018:27017 --replSet rep_europa
+
+// Add Arbiter to server
+docker exec -it europa_stock1 mongo
+rs.addArb("10.0.0.45:27017")
+rs.status();
+
+// Create Router
+docker run -d -p 27021 --net net_stocks_exchange --ip 10.0.0.46 --name stock_router mongo mongos --port 27021:27017 --configdb rep_cfg_stocks/172.30.10.175:27022,172.30.132.156:27017
+
+// Connect to Router
+docker exec -it stocks_router1 mongo
+sh.addShard("rep_europa/10.0.0.41:27019");
+
+sh.status();
+
+// Add Shard Tags
+sh.addShardTag("rep_europa", "N225");
+sh.addShardTag("rep_europa", "HSI");
+sh.addShardTag("rep_europa", "000001.SS");
+sh.addShardTag("rep_europa", "399001.SZ");
+sh.addShardTag("rep_europa", "NSEI");
+sh.addShardTag("rep_europa", "KS11");
+sh.addShardTag("rep_europa", "TWII");
+sh.addShardTag("rep_europa", "J203.JO");
+
+sh.addTagRange( "stocksdb.daily_prices", { Index: "N225"}, { Index: "N225999"}, "N225" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "HSI"}, { Index: "HSI999"}, "HSI" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "000001.SS"}, { Index: "000001.SS999"}, "000001.SS" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "399001.SZ"}, { Index: "399001.SZ999"}, "399001.SZ" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "NSEI"}, { Index: "NSEI999"}, "NSEI" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "KS11"}, { Index: "KS11999"}, "KS11" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "TWII"}, { Index: "TWII999"}, "TWII" );
+sh.addTagRange( "stocksdb.daily_prices", { Index: "J203.JO"}, { Index: "J203.JO999"}, "J203.JO" );
+
+// Enable sharding for a specific database
+sh.enableSharding("stocksdb");
+
+// Now collection and field for shard key.
+sh.shardCollection("stocksdb.daily_prices", { Index : 1 } );
+
+sh.status();
