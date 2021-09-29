@@ -1,0 +1,76 @@
+//----------------------------
+Pame:       172.30.10.175
+DANI:       172.30.132.156
+LUIS:       172.30.232.105
+//----------------------------
+
+//------------------------CONFIG SERVER------------------------
+docker volume create vol_cfg_stock2
+
+// Create a configuration server
+docker run -d  -v vol_cfg_stock2:/data/configdb --name cfg_stock2 -p 27017:27017 mongo mongod --port 27017 --configsvr --replSet "rep_cfg_stock" --bind_ip_all --dbpath /data/configdb
+
+
+//------------------------SHARDS------------------------
+
+docker volume create vol_america_stock1
+docker volume create vol_asiaafrica_stock2
+
+docker run -d -v vol_america_stock1:/data/db --name america_stock1 -p 27019:27017 mongo mongod --port 27017 --bind_ip_all --shardsvr --replSet "rep_america" --dbpath /data/db
+
+docker run -d -v vol_asiaafrica_stock2:/data/db --name asiaafrica_stock2 -p 27020:27017 mongo mongod --port 27017 --bind_ip_all --shardsvr --replSet "rep_asiaafrica" --dbpath /data/db
+
+
+//------------------------ARBITRO DEL CONFIG SERVER------------------------
+docker run -d  --name cfg_stock_arb -p 27023:27023 mongo mongod --port 27023 --bind_ip_all --replSet rep_cfg_stock
+
+//------------------------ARBITRO DEL AMERICA SHARD------------------------
+docker run -d --name america_arb -p 27018:27017 mongo mongod --port 27017 --bind_ip_all --replSet rep_america
+
+
+
+
+//------------------------------------------------------------------------------------------------
+
+// Inicialize America Replica
+
+docker exec -it america_stock1 mongo
+rs.initiate(
+  {
+    _id : "rep_america",
+    members: [
+      { _id : 0, host : "172.30.132.156:27019" },
+      { _id : 1, host : "172.30.232.105:27020" }
+    ]
+  }
+);
+
+
+// Add America Arbiter
+docker exec -it america_stock1 mongo
+rs.addArb("172.30.132.156:27018")
+rs.status();
+
+// Add Config Arbiter ..... no funciona
+docker exec -it cfg_stock2 mongo
+rs.addArb("172.30.132.156:27023")
+rs.status();
+
+
+
+// ---------------------
+
+docker start asiaafrica_stock2
+docker start america_stock1
+docker start america_arb
+docker start cfg_stock2
+docker start cfg_stock_arb
+
+docker stop asiaafrica_stock2
+docker stop america_stock1
+docker stop america_arb
+docker stop cfg_stock_arb
+docker stop cfg_stock2
+
+
+
