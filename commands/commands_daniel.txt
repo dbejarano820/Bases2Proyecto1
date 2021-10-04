@@ -61,3 +61,28 @@ docker stop cfg_stock2
 
 
 
+//-------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
+// POSTGRES
+
+docker run --name postgres_stock -e POSTGRES_USER=admin -e POSTGRES_PASSWORD=12345 -e POSTGRES_DB=proyecto -d -p 5432:5432 postgres
+
+docker exe -it postgres_stock psql -U admin proyecto
+
+CREATE TABLE stocks(
+_id SERIAL PRIMARY KEY,
+High BIGINT,
+Close BIGINT,
+Low BIGINT,
+Date TEXT,
+Index TEXT,
+timestamp BIGINT,
+Open BIGINT,
+AdjClose BIGINT,
+CloseUSD BIGINT,
+Volume BIGINT
+);
+
+\dt  //shows databases
+
+select * from stocks;

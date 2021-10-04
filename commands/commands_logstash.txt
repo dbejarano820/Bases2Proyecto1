@@ -7,3 +7,7 @@ docker-compose up
 // In order to shut of logstash container:
 
 docker-compose down
+
+
+
+
