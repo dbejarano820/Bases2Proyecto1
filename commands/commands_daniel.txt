@@ -12,7 +12,6 @@ docker run -d  -v vol_cfg_stock2:/data/configdb --name cfg_stock2 -p 27024:27017
 
 
 //------------------------SHARDS------------------------
-
 docker volume create vol_america_stock1
 docker volume create vol_asiaafrica_stock2
 docker volume create vol_europa_stock1
@@ -22,6 +21,11 @@ docker run -d -v vol_america_stock1:/data/db --name america_stock1 -p 27019:2701
 docker run -d -v vol_asiaafrica_stock2:/data/db --name asiaafrica_stock2 -p 27020:27017 mongo mongod --bind_ip_all --shardsvr --replSet "rep_asiaafrica" --dbpath /data/db
 
 docker run -d -v vol_europa_stock1:/data/db --name europa_stock1 -p 27019:27022 mongo mongod --bind_ip_all --shardsvr --replSet "rep_europa" --dbpath /data/db
+
+
+//-----------------------ROUTER-----------------------------
+// Inicialize Router #2
+docker run -d --name stock_router2 -p 27023:27017  mongo mongos --bind_ip_all --configdb rep_cfg_stock/172.30.10.175:27023,172.30.132.156:27024
 
 
 //------------------------ARBITROS------------------------
