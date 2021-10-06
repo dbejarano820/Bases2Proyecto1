@@ -1,0 +1,150 @@
+//------------------------CONFIG SERVER------------------------
+//crea server
+docker run -d --name cfg_stock1 -p 27022:27017 mongo mongod --port 27017 --configsvr --bind_ip_all --replSet "rep_cfg_stock" --dbpath /data/configdb
+
+
+//init al servicio de replica set
+docker exec -it cfg_stock1 bash
+rs.initiate(
+  {
+    _id: "rep_cfg_stock",
+    configsvr: true,
+    members: [
+      { _id : 0, host : "172.30.10.175:27022" },
+      { _id : 1, host : "172.30.132.156:27017" },
+      { _id : 2, host : "172.30.232.105:27022" }
+    ]
+  }
+);
+
+// revisar instruccion 
+rs.slaveOk()    //rs.secondaryOk() 
+rs.status() 
+
+//------------------------SHARDS------------------------
+docker volume create vol_asiaafrica1
+docker run -d -v vol_asiaafrica1:/data/db --name asiaafrica_stock1 -p 27019:27017 mongo mongod --port 27017 --shardsvr --bind_ip_all --replSet "rep_asiaafrica" --dbpath /data/db
+
+docker volume create vol_europa1
+docker run -d -v vol_europa1:/data/db --name europa_stock2 -p 27020:27017 mongo mongod --port 27017 --shardsvr --bind_ip_all --replSet "rep_europa" --dbpath /data/db
+
+//inicio la replica
+docker exec -it asiaafrica_stock1 mongo
+rs.initiate(
+  {
+    _id : "rep_asiaafrica",
+    members: [
+      { _id : 0, host : "172.30.10.175:27019" },
+      { _id : 1, host : "172.30.132.156:27020" } 
+    ]
+  }
+);
+
+docker exec -it europa_stock2 mongo
+rs.initiate(
+  {
+    _id : "rep_europa",
+    members: [
+      { _id : 0, host : "172.30.232.105:27019" },
+      { _id : 1, host : "172.30.10.175:27020" }
+    ]
+  }
+);
+
+
+//------------------------ARBITRO DEL ASIAAFRICA------------------------
+
+docker run -d --name asiaafrica_arb -p 27018:27017 mongo mongod --port 27017 --bind_ip_all --replSet rep_asiaafrica
+
+//agrego el arbitro al server
+docker exec -it asiaafrica_stock1 mongo
+rs.addArb("172.30.10.175:27018");
+rs.status();
+
+rs.addArb("172.30.232.105:27018");
+
+//------------------------ROUTER------------------------
+
+//inicializar router indicando config servers
+docker run -d -p 27021:27017 --name stock_router1 mongo mongos --port 27017 --bind_ip_all --configdb rep_cfg_stock/172.30.10.175:27022,172.30.132.156:27017
+
+// conectamos al router
+docker exec -it stock_router1 mongo
+sh.addShard( "rep_asiaafrica/172.30.10.175:27019");
+sh.status();
+
+//indicar shard keys
+sh.addShardTag("rep_asiaafrica", "N225");
+sh.addShardTag("rep_asiaafrica", "HSI");
+sh.addShardTag("rep_asiaafrica", "000001.SS");
+sh.addShardTag("rep_asiaafrica", "399001.SZ");
+sh.addShardTag("rep_asiaafrica", "NSEI");
+sh.addShardTag("rep_asiaafrica", "KS11");
+sh.addShardTag("rep_asiaafrica", "TWII");
+sh.addShardTag("rep_asiaafrica", "J203.JO");
+
+sh.addTagRange( "stockdb.daily_prices", { Index: "N225"}, { Index: "N225999"}, "N225" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "HSI"}, { Index: "HSI999"}, "HSI" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "000001.SS"}, { Index: "000001.SS999"}, "000001.SS" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "399001.SZ"}, { Index: "399001.SZ999"}, "399001.SZ" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "NSEI"}, { Index: "NSEI999"}, "NSEI" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "KS11"}, { Index: "KS11999"}, "KS11" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "TWII"}, { Index: "TWII999"}, "TWII" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "J203.JO"}, { Index: "J203.JO999"}, "J203.JO" );
+
+// Indico cual va a ser la base de datos que va a soportar sharding
+sh.enableSharding("stockdb");
+
+// luego el collection y el campo del collection que va servir como shardkey
+sh.shardCollection("stockdb.daily_prices", { Index : 1 } );
+
+sh.status();
+
+
+***********************************************************************************************
+
+//IPS+++++++++++++++++++++++++
+Pame:       172.30.10.175
+DANI:       172.30.132.156
+LUIS:       172.30.232.105
+//++++++++++++++++++++++++++++
+
+***********************************************************************************************
+docker exec -it stock_router1 mongo
+
+sh.addShard("rep_america/172.30.232.105:27020");
+sh.addShardTag("rep_america", "NYA");
+sh.addShardTag("rep_america", "IXIC");
+sh.addShardTag("rep_america", "GSPTSE");
+
+sh.addTagRange( "stockdb.daily_prices", { Index: "NYA"}, { Index: "NYA999"}, "NYA" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "IXIC"}, { Index: "IXIC999"}, "IXIC" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "GSPTSE"}, { Index: "GSPTSE999"}, "GSPTSE" );
+
+sh.status();
+
+
+sh.addShard("rep_europa/172.30.232.105:27019");
+sh.addShardTag("rep_europa", "N100");
+sh.addShardTag("rep_europa", "GDAXI");
+sh.addShardTag("rep_europa", "SSMI");
+
+sh.addTagRange( "stockdb.daily_prices", { Index: "N100"}, { Index: "N100999"}, "N100" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "GDAXI"}, { Index: "GDAXI999"}, "GDAXI" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "SSMI"}, { Index: "SSMI999"}, "SSMI" );
+
+sh.status();
+
+
+docker start cfg_stock1;
+docker start asiaafrica_stock1;
+docker start europa_stock2;
+docker start asiaafrica_arb;
+docker start stock_router1;
+
+
+docker stop stock_router1;
+docker stop asiaafrica_arb;
+docker stop europa_stock2;
+docker stop asiaafrica_stock1;
+docker stop cfg_stock1;
