@@ -159,3 +159,23 @@ docker stop america_stock2;
 docker stop europa_stock2;
 docker stop asiaafrica_stock1;
 docker stop cfg_stock1;
+
+
+------------------------------------------------------------------------------------------------------
+-- MONGO MONOLITICO
+------------------------------------------------------------------------------------------------------
+docker run -d --name mongoMonolitico -p 27017:27017 mongo
+
+
+
+
+
+
+
+
+
+
+
+
+
+
