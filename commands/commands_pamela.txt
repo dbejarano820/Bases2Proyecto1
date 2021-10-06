@@ -1,6 +1,6 @@
 //------------------------CONFIG SERVER------------------------
 //crea server
-docker run -d --name cfg_stock1 -p 27022:27017 mongo mongod --port 27017 --configsvr --bind_ip_all --replSet "rep_cfg_stock" --dbpath /data/configdb
+docker run -d --name cfg_stock1 -p 27023:27017 mongo mongod --port 27017 --configsvr --bind_ip_all --replSet "rep_cfg_stock" --dbpath /data/configdb
 
 
 //init al servicio de replica set
@@ -10,8 +10,8 @@ rs.initiate(
     _id: "rep_cfg_stock",
     configsvr: true,
     members: [
-      { _id : 0, host : "172.30.10.175:27022" },
-      { _id : 1, host : "172.30.132.156:27017" }
+      { _id : 0, host : "172.30.10.175:27023" },
+      { _id : 1, host : "172.30.132.156:27024" }
     ]
   }
 );
@@ -28,7 +28,7 @@ docker volume create vol_europa2
 docker run -d -v vol_europa1:/data/db --name europa_stock2 -p 27020:27017 mongo mongod --port 27017 --shardsvr --bind_ip_all --replSet "rep_europa" --dbpath /data/db
 
 docker volume create vol_america2
-docker run -d -v vol_america1:/data/db --name america_stock2 -p 27023:27017 mongo mongod --port 27017 --shardsvr --bind_ip_all --replSet "rep_america" --dbpath /data/db
+docker run -d -v vol_america1:/data/db --name america_stock2 -p 27021:27017 mongo mongod --port 27017 --shardsvr --bind_ip_all --replSet "rep_america" --dbpath /data/db
 
 //inicio la replica
 docker exec -it asiaafrica_stock1 mongo
@@ -47,7 +47,7 @@ rs.initiate(
   {
     _id : "rep_europa",
     members: [
-      { _id : 0, host : "172.30.132.156:270________" },
+      { _id : 0, host : "172.30.132.156:27022" },
       { _id : 1, host : "172.30.10.175:27020" }
     ]
   }
@@ -58,8 +58,8 @@ rs.initiate(
   {
     _id : "rep_america",
     members: [
-      { _id : 0, host : "172.30.132.156:270________" },
-      { _id : 1, host : "172.30.10.175:27023" }
+      { _id : 0, host : "172.30.132.156:27019" },
+      { _id : 1, host : "172.30.10.175:27021" }
     ]
   }
 );
@@ -74,8 +74,6 @@ docker exec -it asiaafrica_stock1 mongo
 rs.addArb("172.30.10.175:27018");
 rs.status();
 
-rs.addArb("172.30.232.105:27018");
-
 //------------------------ROUTER------------------------
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -84,7 +82,7 @@ DANI:       172.30.132.156
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //inicializar router indicando config servers
-docker run -d -p 27021:27017 --name stock_router1 mongo mongos --port 27017 --bind_ip_all --configdb rep_cfg_stock/172.30.10.175:27022,172.30.132.156:27017
+docker run -d -p 27022:27017 --name stock_router1 mongo mongos --port 27017 --bind_ip_all --configdb rep_cfg_stock/172.30.10.175:27023,172.30.132.156:27024
 
 // conectamos al router
 docker exec -it stock_router1 mongo
@@ -121,7 +119,7 @@ sh.status();
 
 docker exec -it stock_router1 mongo
 
-sh.addShard("rep_america/172.30.10.175:27023");
+sh.addShard("rep_america/172.30.10.175:27021");
 sh.addShardTag("rep_america", "NYA");
 sh.addShardTag("rep_america", "IXIC");
 sh.addShardTag("rep_america", "GSPTSE");
