@@ -1,6 +1,8 @@
 ------------------------------------------------------------------------------------------------------
 -- PORT FORWARDING
 ------------------------------------------------------------------------------------------------------
-//ip 192.168.2.108
 
-netsh interface portproxy add v4tov4 listenaddress=172.30.10.175 listenport=5432 connectaddress=172.30.132.156 connectport=5432
+netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=5001 connectaddress=172.30.132.156 connectport=5432
+
+
+netstat -na|find "5001"
