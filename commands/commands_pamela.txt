@@ -75,7 +75,8 @@ docker run -d -p 27022:27017 --name stock_router1 mongo mongos --port 27017 --bi
 
 // conectamos al router
 docker exec -it stock_router1 mongo
-sh.addShard( "rep_asiaafrica/172.30.10.175:27019");
+sh.addShard("rep_asiaafrica/172.30.10.175:27019");
+sh.addShard("rep_americaeuropa/172.30.132.156:27019");
 sh.status();
 
 //indicar shard keys
@@ -87,6 +88,12 @@ sh.addShardTag("rep_asiaafrica", "NSEI");
 sh.addShardTag("rep_asiaafrica", "KS11");
 sh.addShardTag("rep_asiaafrica", "TWII");
 sh.addShardTag("rep_asiaafrica", "J203.JO");
+sh.addShardTag("rep_americaeuropa", "NYA");
+sh.addShardTag("rep_americaeuropa", "IXIC");
+sh.addShardTag("rep_americaeuropa", "GSPTSE");
+sh.addShardTag("rep_americaeuropa", "N100");
+sh.addShardTag("rep_americaeuropa", "GDAXI");
+sh.addShardTag("rep_americaeuropa", "SSMI");
 
 sh.addTagRange( "stockdb.daily_prices", { Index: "N225"}, { Index: "N225999"}, "N225" );
 sh.addTagRange( "stockdb.daily_prices", { Index: "HSI"}, { Index: "HSI999"}, "HSI" );
@@ -96,6 +103,13 @@ sh.addTagRange( "stockdb.daily_prices", { Index: "NSEI"}, { Index: "NSEI999"}, "
 sh.addTagRange( "stockdb.daily_prices", { Index: "KS11"}, { Index: "KS11999"}, "KS11" );
 sh.addTagRange( "stockdb.daily_prices", { Index: "TWII"}, { Index: "TWII999"}, "TWII" );
 sh.addTagRange( "stockdb.daily_prices", { Index: "J203.JO"}, { Index: "J203.JO999"}, "J203.JO" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "NYA"}, { Index: "NYA999"}, "NYA" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "IXIC"}, { Index: "IXIC999"}, "IXIC" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "GSPTSE"}, { Index: "GSPTSE999"}, "GSPTSE" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "N100"}, { Index: "N100999"}, "N100" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "GDAXI"}, { Index: "GDAXI999"}, "GDAXI" );
+sh.addTagRange( "stockdb.daily_prices", { Index: "SSMI"}, { Index: "SSMI999"}, "SSMI" );
+
 
 // Indico cual va a ser la base de datos que va a soportar sharding
 sh.enableSharding("stockdb");
@@ -105,22 +119,6 @@ sh.shardCollection("stockdb.daily_prices", { Index : 1 } );
 
 sh.status();
 
-sh.addShard("rep_americaeuropa/172.30.10.175:27020");
-sh.addShardTag("rep_americaeuropa", "NYA");
-sh.addShardTag("rep_americaeuropa", "IXIC");
-sh.addShardTag("rep_americaeuropa", "GSPTSE");
-sh.addShardTag("rep_americaeuropa", "N100");
-sh.addShardTag("rep_americaeuropa", "GDAXI");
-sh.addShardTag("rep_americaeuropa", "SSMI");
-
-sh.addTagRange( "stockdb.daily_prices", { Index: "NYA"}, { Index: "NYA999"}, "NYA" );
-sh.addTagRange( "stockdb.daily_prices", { Index: "IXIC"}, { Index: "IXIC999"}, "IXIC" );
-sh.addTagRange( "stockdb.daily_prices", { Index: "GSPTSE"}, { Index: "GSPTSE999"}, "GSPTSE" );
-sh.addTagRange( "stockdb.daily_prices", { Index: "N100"}, { Index: "N100999"}, "N100" );
-sh.addTagRange( "stockdb.daily_prices", { Index: "GDAXI"}, { Index: "GDAXI999"}, "GDAXI" );
-sh.addTagRange( "stockdb.daily_prices", { Index: "SSMI"}, { Index: "SSMI999"}, "SSMI" );
-
-sh.status();
 
 
 docker start cfg_stock1;
@@ -140,7 +138,7 @@ docker stop cfg_stock1;
 ------------------------------------------------------------------------------------------------------
 -- MONGO MONOLITICO
 ------------------------------------------------------------------------------------------------------
-docker run -d --name mongoMonolitico -p 27017:27017 mongo
+docker run -d --name mongo_m -p 27017:27017 mongo mongod --bind_ip_all
 
 
 
