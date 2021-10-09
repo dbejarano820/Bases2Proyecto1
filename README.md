@@ -4,5 +4,7 @@ Integrantes:
 - Daniel Bejarano 
 - Pamela Dinarte
 
+El objetivo es determinar si efectivamente hay una diferencia de rendimiento entre las arquitecturas relacionales, no relacionales y en cluster.
+
 
 ![Home](https://imgur.com/WphDWmj.png)
