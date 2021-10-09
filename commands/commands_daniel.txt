@@ -1,7 +1,6 @@
 //----------------------------
 Pame:       172.30.10.175
 DANI:       172.30.132.156
-LUIS:       172.30.232.105
 //----------------------------
 
 //------------------------CONFIG SERVER------------------------
@@ -58,6 +57,7 @@ rs.status();
 
 docker start asiaafrica_stock2
 docker start americaeuropa_stock1
+docker start stock_router2
 docker start americaeuropa_arb
 docker start cfg_stock2
 
@@ -65,6 +65,7 @@ docker start cfg_stock2
 docker stop asiaafrica_stock2
 docker stop americaeuropa_stock1
 docker stop americaeuropa_arb
+docker stop stock_router2
 docker stop cfg_stock2
 
 
@@ -94,3 +95,12 @@ Volume BIGINT
 \dt  //shows databases
 
 select * from stocks;
+
+
+-----------------------------------------------------------------------------
+//Port Forwarding - Mac
+Using a tool called ncat
+// Set port foward localhost:27016 to pameVPN:27017
+
+sudo ncat --sh-exec "ncat 172.30.10.175 27017" -l 27016 --keep-open
+
