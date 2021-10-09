@@ -1,0 +1,75 @@
+//Con todo el cluster activo 100%, la funcionalidad correcta se puede probar de la siguiente manera:
+
+//Pame o Daniel se conecta a un router y verifica que pueda agarrar todos los registros, en este caso Daniel
+docker exec -it stock_router2 mongo
+use stockdb
+db.daily_prices.find().pretty()
+
+
+//Luego para verificar el funcionamiento de los replica shards:
+//Pame o Daniel se conecta a uno de los servers de cada replica shard para verificar los datos correctos
+//En este caso Daniel verifica el shard asiaafrica
+docker exec -it asiaafrica_stock2 mongo
+use stockdb
+db.daily_prices.find().pretty()  //se verifica que los registros solamente corresponden a stock markets ubicados en asia o africa, ninguna de america o europa 
+
+//En este caso Daniel verifica el shard americaeuropa
+docker exec -it americaeuropa mongo
+use stockdb
+db.daily_prices.find().pretty()  //se verifica que los registros solamente corresponden a stock markets ubicados en asia o africa, ninguna de america o europa 
+
+
+//De igual manera podemos apagar uno de los servers de un replica shard y verificar que aún se pueden ver los registros con un router
+
+//Daniel apaga un servidor
+docker stop americaeuropa_stock1
+
+//Daniel o Pame ingresa a un router y verifica que aún puede consultar datos, en este caso Pame
+docker exec -it stock_router1 mongo
+use stockdb
+db.daily_prices.find().pretty() //aún puede consultar todos los datos
+
+//Pame apaga el otro servidor del replica set AmericaEuropa
+docker stop americaeuropa_stock2
+
+//Daniel o pame ingresa a un router y verifica que ya no se puede consultar los datos, en este caso Pame
+docker exec -it stock_router1 mongo
+use stockdb
+db.daily_prices.find().pretty() //ya no se puede consultar los datos
+
+
+//Daniel vuelve a encender el server que había apagado
+docker start americaeuropa_stock1
+
+//Daniel o pame ingresa a un router y verifica que nuevamente se puede consultar los datos, en este caso Pame
+docker exec -it stock_router1 mongo
+use stockdb
+db.daily_prices.find().pretty() 
+
+
+
+
+
+//Para la pruebas con jmeter con 50% del cluster activo
+//Apagamos los siguientes nodos
+
+//Pame
+docker stop americaeuropa_stock2
+docker stop asiaafrica_stock1
+docker stop cfg_stock1
+
+//Daniel
+docker stop stock_router2
+
+//Para manipular la cantidad de shards que se utilizaba, manejabamos el query y los registros que pedíamos
+
+
+//Luego se puede volver a prender los mismos nodos para tener el 100% activo y todo corre igual de bien
+
+//Pame
+docker start americaeuropa_stock2
+docker start asiaafrica_stock1
+docker start cfg_stock1
+
+//Daniel
+docker start stock_router2
