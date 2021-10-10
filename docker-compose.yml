@@ -1,0 +1,9 @@
+version: "3.4"
+
+services:
+  logstash:
+    build: .
+    network_mode: host
+    volumes:
+      - ./pipeline:/usr/share/logstash/pipeline/
+      - ./kaggle_dataset:/usr/share/logstash/kaggle_dataset

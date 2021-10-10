@@ -1,0 +1,47 @@
+---------------------------			
+Conclusiones de rendimiento
+---------------------------			
+
+1. El 66% de las pruebas que retornaban todos los registros en postgres 
+tuvieron un mejor rendimiento que la prueba con mejor rendimiento del cluster; 
+mientras que para las pruebas de 3000, el 28% de las pruebas en postgres 
+tuvieron un mejor rendimiento que la prueba con mejor rendimiento del cluster.			
+
+2. El 22% de las pruebas que retornaban todos los registros del cluster 
+tuvieron un mejor rendimiento que la prueba con mejor rendimiento del monolítico. 
+Para las pruebas de 3000, el 78% de las pruebas del cluster tuvieron un mejor 
+rendimiento que la prueba con mejor rendimiento del monolítico.			
+
+3. En promedio, el cluster resultó ser 13% más rápido que el monolitico para 
+las pruebas que retornaban todos los registros y un 44% más rápido para las pruebas de 3000.			
+
+4. En promedio, postgres fue más rápido en un 35% para las pruebas que retornaban 
+todos los registros en comparación al cluster y un 31% para las pruebas de 3000.			
+
+5. El número de shards que necesita para resolver las consultas afecta muy poco 
+el rendimiento del cluster, ya que en promedio, el tiempo solo disminuyó 
+entre 1.2%-1.4% con cada shard menos que necesitaba para la consulta.			
+
+6. El número de nodos activos en el cluster no afecta el rendimiento de las consultas 
+en gran medida, puesto que se observa una diferencia de menos del 1% en el tiempo promedio.	
+
+
+
+----------------------------------------------			
+Conclusiones sobre el porqué de los resultados
+----------------------------------------------	
+
+*Conclusiones sobre el porqué de los resultados*
+
+El cluster obtuvo un mejor rendimiento en comparación al monolítico debido a que el router
+sabe en que shard se encuentra cada shard key y por ende no es necesario recorrer todos los
+documentos de la base de datos para encontrar los datos.
+
+Postgres mostró mejores tiempos en comparación a mongo ya que está muy optimizado para
+que los queries de select sean rápidos.
+
+El número de nodos activos no afectó el rendimiento de las consultas en el cluster ya que
+se utilizaron pocos hilos para consultar a la base de datos y por lo tanto se pudieron
+resolver todos los queries en tiempos similares.
+
+

@@ -1,0 +1,106 @@
+//----------------------------
+Pame:       172.30.10.175
+DANI:       172.30.132.156
+//----------------------------
+
+//------------------------CONFIG SERVER------------------------
+docker volume create vol_cfg_stock2
+
+// Create a configuration server
+docker run -d  -v vol_cfg_stock2:/data/configdb --name cfg_stock2 -p 27024:27017 mongo mongod --port 27017 --configsvr --replSet "rep_cfg_stock" --bind_ip_all --dbpath /data/configdb
+
+
+//------------------------SHARDS------------------------
+docker volume create vol_americaeuropa_stock1
+docker volume create vol_asiaafrica_stock2
+
+docker run -d -v vol_americaeuropa_stock1:/data/db --name americaeuropa_stock1 -p 27019:27017 mongo mongod --port 27017 --bind_ip_all --shardsvr --replSet "rep_americaeuropa" --dbpath /data/db
+
+docker run -d -v vol_asiaafrica_stock2:/data/db --name asiaafrica_stock2 -p 27020:27017 mongo mongod --bind_ip_all --port 27017 --shardsvr --replSet "rep_asiaafrica" --dbpath /data/db
+
+
+//-----------------------ROUTER-----------------------------
+// Inicialize Router #2
+docker run -d --name stock_router2 -p 27023:27017  mongo mongos --port 27017 --bind_ip_all --configdb rep_cfg_stock/172.30.10.175:27023,172.30.132.156:27024
+
+
+//------------------------ARBITROS------------------------
+//arbitro de americaeuropa
+docker run -d --name americaeuropa_arb -p 27018:27017 mongo mongod --port 27017 --bind_ip_all --replSet rep_americaeuropa
+
+
+//------------------------------------------------------------------------------------------------
+
+// Inicialize AmericaEuropa Replica
+
+docker exec -it americaeuropa_stock1 mongo
+rs.initiate(
+  {
+    _id : "rep_americaeuropa",
+    members: [
+      { _id : 0, host : "172.30.132.156:27019" },
+      { _id : 1, host : "172.30.10.175:27020" }
+    ]
+  }
+);
+
+
+// Add AmericaEuropa Arbiter
+docker exec -it americaeuropa_stock1 mongo
+rs.addArb("172.30.132.156:27018")
+rs.status();
+
+
+
+
+//----------------------
+
+docker start asiaafrica_stock2
+docker start americaeuropa_stock1
+docker start stock_router2
+docker start americaeuropa_arb
+docker start cfg_stock2
+
+
+docker stop asiaafrica_stock2
+docker stop americaeuropa_stock1
+docker stop americaeuropa_arb
+docker stop stock_router2
+docker stop cfg_stock2
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
+// POSTGRES
+
+docker run --name postgres_stock -e POSTGRES_USER=admin -e POSTGRES_PASSWORD=12345 -e POSTGRES_DB=stockdb -d -p 5432:5432 postgres
+
+docker exec -it postgres_stock psql -U admin stockdb
+
+CREATE TABLE daily_prices (
+_id SERIAL PRIMARY KEY,
+High BIGINT,
+Close BIGINT,
+Low BIGINT,
+Date TEXT,
+Index TEXT,
+timestamp TEXT,
+Open BIGINT,
+AdjClose BIGINT,
+CloseUSD BIGINT,
+Volume BIGINT
+);
+
+\dt  //shows databases
+
+select * from stocks;
+
+
+-----------------------------------------------------------------------------
+//Port Forwarding - Mac
+Using a tool called ncat
+// Set port foward localhost:27016 to pameVPN:27017
+
+sudo ncat --sh-exec "ncat 172.30.10.175 27017" -l 27016 --keep-open
+
